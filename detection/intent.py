@@ -72,32 +72,32 @@ def detect_intent(text: str,spam_model,vectorizer,session) -> Dict:
     if any(word in text_lower for word in URGENCY_KEYWORDS):
         confidence += 0.15
         signals.append("urgency")
-        suspiciousKeywords.append(text)
+        suspiciousKeywords.append(text_lower)
 
 
     # 2. Threat / Fear
     if any(word in text_lower for word in THREAT_KEYWORDS):
         confidence += 0.15
         signals.append("threat")
-        suspiciousKeywords.append(text)
+        suspiciousKeywords.append(text_lower)
 
     # 3. Action demand
     if any(word in text_lower for word in ACTION_KEYWORDS):
         confidence += 0.15
         signals.append("action_request")
-        suspiciousKeywords.append(text)
+        suspiciousKeywords.append(text_lower)
 
     # 4. Authority impersonation
     if any(word in text_lower for word in AUTHORITY_KEYWORDS):
         confidence += 0.10
         signals.append("authority_impersonation")
-        suspiciousKeywords.append(text)
+        suspiciousKeywords.append(text_lower)
 
     # 5. Sensitive information request
     if any(word in text_lower for word in SENSITIVE_INFO_KEYWORDS):
         confidence += 0.15
         signals.append("sensitive_info_request")
-        suspiciousKeywords.append(text)
+        suspiciousKeywords.append(text_lower)
 
     # 6. Suspicious URLs
     urls = extract_urls(text)

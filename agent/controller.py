@@ -114,10 +114,10 @@ def handle_agent(
             "suspiciousKeywords": suspiciousKeywords
         },
     )
-
+    reason = generate_reason(message, session["messages"], suspiciousKeywords)
     total_messages = len(session["messages"])
     if decision == "scam":
-        send_final_callback(session_id, intels, total_messages)
+        send_final_callback(session_id, intels, total_messages, reason)
 
     print(f"Session before sending response back to user: {session}")
     # -----------------------------
@@ -274,6 +274,31 @@ When scam is confirmed:
 Return ONLY valid JSON.
 """
 
+def build_reason_prompt(message: str, history: list, suspiciousKeywords: list) -> str:
+    return """
+You are a spam analysis engine used in a honeypot detection system.
+
+Your task:
+Generate a concise human-readable reason (20–200 characters) explaining WHY the conversation was flagged as spam.
+
+You will be provided with:
+- The last message sent by the suspected scammer
+- The full conversation history
+- A list of suspicious keywords or patterns detected
+
+Rules:
+- Be factual and neutral (no accusations like "criminal" or "fraudster")
+- Do NOT mention internal systems, honeypots, or AI
+- Do NOT quote messages verbatim
+- Summarize the behavior, not the entire conversation
+- Focus on intent signals such as urgency, impersonation, OTP requests, pressure, or verification abuse
+- Output ONLY the reason text, nothing else
+
+Style:
+- Single sentence
+- Clear, professional, and understandable to non-technical users
+- Length strictly between 20 and 200 characters
+"""
 
 def build_user_prompt(history, latest_message):
     """
@@ -320,6 +345,28 @@ def generate_reply(latest_message, history: list, agent_stage: str) -> str:
         print(f"LLM error: {e}")
         
         return "I am not able understand.Can you please share more details?"
+
+def generate_reason(latest_message, history: list, suspiciousKeywords: list) -> str:
+    try:
+        messages = [
+            {"role": "system", "content": build_reason_prompt(latest_message, history, suspiciousKeywords)}
+            ]
+
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=messages,
+            max_tokens=200,
+            temperature=0.8,  # Creative but controlled
+        )
+        #raw_output = response.choices[0].message.content.strip()
+        print(f"Reasoning: {response.choices[0].message.content.strip()}")
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        # Fallback if OpenAI fails
+        traceback.print_exc()
+        print(f"LLM Reasoning error: {e}")
+        
+        return "I am not able generate reason :-("
 
 
 def extract_intel(text: str,suspiciousKeywords) -> dict:
@@ -372,14 +419,14 @@ def extract_intel(text: str,suspiciousKeywords) -> dict:
     return {k: v for k, v in intel.items() if v}
 
 
-def send_final_callback(session_id: str, intel: dict, total_messages: int):
+def send_final_callback(session_id: str, intel: dict, total_messages: int, reason: str):
     """Send final intelligence report to GUVI evaluation endpoint"""
     payload = {
         "sessionId": session_id,
         "scamDetected": True,
         "totalMessagesExchanged": total_messages,
         "extractedIntelligence": intel,
-        "agentNotes": "Scammer used urgency tactics and shared phishing links/UPI IDs",
+        "agentNotes": reason,
     }
 
     try:
