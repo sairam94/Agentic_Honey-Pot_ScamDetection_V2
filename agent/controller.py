@@ -14,11 +14,15 @@ from groq import Groq
 import json
 from fastapi import Request
 
-YOUR_GROQ_API_KEY = ""
-client = Groq(api_key=YOUR_GROQ_API_KEY)
+from spacy.cli import download
+download("en_core_web_sm")
 
 # Load environment variables
 load_dotenv()
+YOUR_GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+client = Groq(api_key=YOUR_GROQ_API_KEY)
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Add to top of main.py
+
 # client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Load SpaCy model
